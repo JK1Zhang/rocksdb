@@ -1,3 +1,13 @@
 {
-    "workbench.editor.wrapTabs": true
+    "files.associations": {
+        "*.rar": "hexdump",
+        "c.h": "c",
+        "iosfwd": "cpp",
+        "fstream": "cpp",
+        "cstddef": "cpp"
+    },
+    "C_Cpp.errorSquiggles": "Disabled",
+    //"C_Cpp.intelliSenseEngineFallback": "Disabled", //需要添加的
+    //"C_Cpp.intelliSenseEngine": "Tag Parser",  //  需要添加的
+
 }

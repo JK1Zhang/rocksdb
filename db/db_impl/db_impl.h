@@ -1082,6 +1082,34 @@ class DBImpl : public DB {
       bool read_only = false, bool error_if_log_file_exist = false,
       bool error_if_data_exists_in_logs = false);
 
+
+
+
+
+
+// uni_index:jk
+
+struct recordIndexPara{  
+    uint64_t number;
+    Iterator* memIter;
+    ListIndexEntry* curHashIndex;
+  }; 
+
+int NewestPartition=0;
+//int writeL0Number;
+//int  NoPersistentFile=0;
+struct ListIndexEntry *CuckooHashIndex[config::kNumPartition];
+
+void initHashIndex();
+void persistentHashTable();
+void compactHashIndexTable();
+void compactHashIndexPartitionTable(int partition);
+void recoveryHashTable();
+static void* recordHashIndex(void *paraData);
+
+
+
+
  private:
   friend class DB;
   friend class ErrorHandler;

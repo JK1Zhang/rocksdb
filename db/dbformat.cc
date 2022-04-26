@@ -17,6 +17,89 @@
 
 namespace rocksdb {
 
+
+
+//unikv:jk
+//int to byte
+void  intTo4Byte(unsigned int i,byte *bytes)
+{
+    memset(bytes,0,sizeof(byte) * 4);
+    bytes[0] = (byte) (0xff & i);
+    bytes[1] = (byte) ((0xff00 & i) >> 8);
+    bytes[2] = (byte) ((0xff0000 & i) >> 16);
+    bytes[3] = (byte) ((0xff000000 & i) >> 24);
+ }
+ 
+ void  intTo3Byte(unsigned int i,byte *bytes)
+{
+    memset(bytes,0,sizeof(byte) * 3);
+    bytes[0] = (byte) (0xff & i);
+    bytes[1] = (byte) ((0xff00 & i) >> 8);
+    bytes[2] = (byte) ((0xff0000 & i) >> 16);
+ }
+ 
+void  intTo2Byte(unsigned int i,byte *bytes)
+{
+    memset(bytes,0,sizeof(byte) * 2);
+    bytes[0] = (byte) (0xff & i);
+    bytes[1] = (byte) ((0xff00 & i) >> 8);
+ }
+ 
+ void  intToByte(unsigned int i,byte *bytes)
+{
+    memset(bytes,0,sizeof(byte) * 1);
+    bytes[0] = (byte) (0xff & i);
+ }
+
+//byte to int
+ unsigned int bytesToInt(byte* bytes) 
+{
+    unsigned int addr = bytes[0];
+    return addr;
+ }
+ 
+ unsigned int bytes2ToInt(byte* bytes) 
+{
+    unsigned int addr = bytes[0];
+    addr |= (bytes[1] << 8);
+    return addr;
+ }
+ 
+unsigned int bytes3ToInt(byte* bytes) 
+{
+    unsigned int addr = bytes[0];
+    addr |= (bytes[1] << 8);
+    addr |= (bytes[2] << 16);
+    return addr;
+ }
+ 
+ unsigned int bytes4ToInt(byte* bytes) 
+{
+    unsigned int addr = bytes[0];
+    addr |= (bytes[1] << 8);
+    addr |= (bytes[2] << 16);
+    addr |= (bytes[3] << 24);
+    return addr;
+ }
+
+int myStrlen(unsigned char* str){
+  int nLen=0;
+  unsigned char* p=str;
+  while(*p!=0){
+    nLen++;
+    p++;
+  }
+  return nLen;
+}
+
+
+
+
+
+
+
+
+
 // kValueTypeForSeek defines the ValueType that should be passed when
 // constructing a ParsedInternalKey object for seeking to a particular
 // sequence number (since we sort sequence numbers in decreasing order

@@ -26,7 +26,62 @@
 #include "util/coding.h"
 #include "util/user_comparator_wrapper.h"
 
+typedef unsigned char byte;
+
 namespace rocksdb {
+
+namespace config {
+    static const int kNumPartition =50;//
+    static const long long int kSplitBytes=43999672960;//49999672960;
+    static const long long int kGCBytes=43999672960;//49999672960;
+    static const long long int kcontinueWriteBytes=25474836480;
+
+    static const int kNumLevels =2;//
+    static const int kTempLevel =0;//
+    static const int kL0_CompactionTrigger =80;//66 NOTE:kL0_CompactionTrigger*64MB< kSplitBytes
+    static const int kL0_SlowdownWritesTrigger =1.5*kL0_CompactionTrigger;//
+    static const int kL0_StopWritesTrigger =1.5*kL0_CompactionTrigger;//
+
+    static const int bucketNum=4000000;//
+    static const int cuckooHashNum=4;
+    static const int logFileNum=200;//
+    static const int maxThreadNum=30;
+    static const int maxScanThread=50;//50
+    //static const int file_size=66624;//
+    static const int triggerSizeBasedMerge=5;
+    static const bool seekPrefetch=true;
+    static const int pointerSize=10;
+    static const int minValueSize=100;
+    static const int maxValueSize=66536;
+    static const int maxScanLength=1000;
+
+    //static const int limitSacnFiles=8;
+    static const int checkPointInterval=100;
+    static const int kKeyLength =24;
+    //static const int  MaxTableNum=10;//
+    static const int  baseRange=1100000;//no use
+
+    static const char* B_TreeDir="../persitentIndexDir";
+    static const char* B_TreeFile="../persitentIndexDir/B_TreeStore.txt";
+    static const char* HashTableDir="../persitentIndexDir";
+    static const char* HashTableFile="../persitentIndexDir/hashTableStore.txt";
+}
+
+struct ListIndexEntry{
+    byte KeyTag[2];
+    byte TableNum[2];
+    ListIndexEntry* nextEntry;
+};
+
+void  intTo4Byte(unsigned int i,byte *bytes);
+void  intTo3Byte(unsigned int i,byte *bytes);
+void  intTo2Byte(unsigned int i,byte *bytes);
+void  intToByte(unsigned int i,byte *bytes);
+unsigned int bytesToInt(byte* bytes) ;
+unsigned int bytes2ToInt(byte* bytes) ;
+unsigned int bytes3ToInt(byte* bytes) ;
+unsigned int bytes4ToInt(byte* bytes) ;
+
 
 // The file declares data structures and functions that deal with internal
 // keys.
