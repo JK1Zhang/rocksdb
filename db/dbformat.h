@@ -31,7 +31,7 @@ typedef unsigned char byte;
 namespace rocksdb {
 
 namespace config {
-    static const int kNumPartition =50;//
+    static const int kNumPartition =1;//
     static const long long int kSplitBytes=43999672960;//49999672960;
     static const long long int kGCBytes=43999672960;//49999672960;
     static const long long int kcontinueWriteBytes=25474836480;
@@ -61,10 +61,10 @@ namespace config {
     //static const int  MaxTableNum=10;//
     static const int  baseRange=1100000;//no use
 
-    static const char* B_TreeDir="../persitentIndexDir";
-    static const char* B_TreeFile="../persitentIndexDir/B_TreeStore.txt";
-    static const char* HashTableDir="../persitentIndexDir";
-    static const char* HashTableFile="../persitentIndexDir/hashTableStore.txt";
+    //static const char* B_TreeDir="../persitentIndexDir";
+    //static const char* B_TreeFile="../persitentIndexDir/B_TreeStore.txt";
+    //static const char* HashTableDir="../persitentIndexDir";
+     __attribute__((unused))static const char* HashTableFile="../persitentIndexDir/hashTableStore.txt";
 }
 
 struct ListIndexEntry{

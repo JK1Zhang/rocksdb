@@ -176,7 +176,7 @@ class FilePicker {
             tableNum=-1,fileNum=-1;
             HashFunc verhashfunc;
             int bucketNumber = verhashfunc.cuckooHash((char*)user_key_.ToString().substr(0,config::kKeyLength).c_str(),k,config::kKeyLength);
-            ListIndexEntry *lastEntry=&((DBImpl::CuckooHashIndex[0])[bucketNumber]);
+            ListIndexEntry *lastEntry=&(((DBImpl::getCuckooHashIndex())[bucketNumber]));
             while(lastEntry!=NULL){
                   //printf( "in Link List look key:%u, in level:%d,bucket:%d\n",InKey,level,bucketNumber);
                   if(lastEntry->KeyTag[0]==keyBytes[2] && lastEntry->KeyTag[1]==keyBytes[3]){	
@@ -190,9 +190,9 @@ class FilePicker {
                       lastEntry=lastEntry->nextEntry;
                       continue;
                   }
-                  for(int k=0;k<curr_file_level_->num_files;k++){
-                      if(tableNum==(int)((&curr_file_level_->files[k])->fd).packed_number_and_path_id){
-                          fileNum=k;            
+                  for(int t=0;(size_t)t<curr_file_level_->num_files;t++){
+                      if(tableNum==(int)((&curr_file_level_->files[t])->fd).packed_number_and_path_id){
+                          fileNum=t;            
                           break;
                       }
                   }

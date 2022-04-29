@@ -99,8 +99,21 @@
 #include "util/mutexlock.h"
 #include "util/stop_watch.h"
 #include "util/string_util.h"
+#include <fstream>
+
 
 namespace rocksdb {
+
+
+
+
+DBImpl *DBImpl::dbimply_m = (DBImpl*)NULL;
+
+
+
+
+
+
 const std::string kDefaultColumnFamilyName("default");
 const std::string kPersistentStatsColumnFamilyName(
     "___rocksdb_stats_history___");
@@ -143,6 +156,239 @@ void DumpSupportInfo(Logger* logger) {
 
 int64_t kDefaultLowPriThrottledRate = 2 * 1024 * 1024;
 }  // namespace
+
+
+
+
+////////////////////unikv jk
+
+struct ListIndexEntry *DBImpl::getCuckooHashIndex(){
+  return ((*dbimply_m).CuckooHashIndex[0]);
+}
+
+void DBImpl::initHashIndex(){
+    for(int p=0;p<=NewestPartition;p++){
+      CuckooHashIndex[p]=new ListIndexEntry[config::bucketNum];
+      //overflowBucket[p]=new ListIndexEntry[config::bucketNum];
+      for(int i=0;i<config::bucketNum;i++){
+        CuckooHashIndex[p][i].KeyTag[0]=0;
+        CuckooHashIndex[p][i].KeyTag[1]=0;
+        CuckooHashIndex[p][i].TableNum[0]=0;
+        CuckooHashIndex[p][i].TableNum[1]=0;
+        //CuckooHashIndex[p][i].TableNum[2]=0;
+        CuckooHashIndex[p][i].nextEntry=NULL;
+        //HashIndex[i].nextEntry=NULL;
+      }
+    }
+}
+
+//persistent hash index into a disk file
+void DBImpl::persistentHashTable(){
+  std::ofstream hashFile;
+  hashFile.open(config::HashTableFile);
+  for(int p=0;p<=NewestPartition;p++){
+    for(int i=0;i<config::bucketNum;i++){
+      ListIndexEntry *lastEntry=&CuckooHashIndex[p][i];
+          if(bytes2ToInt(lastEntry->TableNum)!=0){
+            while(lastEntry!=NULL){
+              hashFile<<p<<","<<i<<",";
+                hashFile<<(unsigned int)lastEntry->KeyTag[0]<<","<<(unsigned int)lastEntry->KeyTag[1]<<",";
+                hashFile<<bytes2ToInt(lastEntry->TableNum)<<";";	  
+                lastEntry=lastEntry->nextEntry;
+            }
+            hashFile<<"\n";
+          }
+          lastEntry=&CuckooHashIndex[p][i];
+          if(bytes2ToInt(lastEntry->TableNum)==0 && lastEntry->nextEntry!=NULL){
+            lastEntry=lastEntry->nextEntry;
+            while(lastEntry!=NULL){
+                hashFile<<p<<","<<i<<",";
+                hashFile<<(unsigned int)lastEntry->KeyTag[0]<<","<<(unsigned int)lastEntry->KeyTag[1]<<",";
+                hashFile<<bytes2ToInt(lastEntry->TableNum)<<";";
+                lastEntry=lastEntry->nextEntry; 
+            }
+            hashFile<<"\n";
+          }
+    }
+  }
+  hashFile.close();
+}
+
+//recovery the hash index from a disk file
+void DBImpl::recoveryHashTable(){
+  std::ifstream hashFile;
+  hashFile.open(config::HashTableFile);
+  if (!hashFile){ 
+      printf("open fail\n");     
+      fprintf(stderr,"open fail\n");     
+  }
+  unsigned int partitionNumber=0,tag0,tag1,fileID,bucketNumber=0;
+  char temp;
+  while(hashFile>>partitionNumber){
+      hashFile>>temp>>bucketNumber >> temp >> tag0 >> temp>>tag1>>temp>>fileID>>temp;
+          //fprintf(stderr,"partitionNumber:%d,bucketNumber:%d,tag0:%d,tag1:%d,fileID:%d\n",partitionNumber,bucketNumber,tag0,tag1,fileID);
+          byte* tableNumBytes=new byte[2];
+          intTo2Byte(fileID,tableNumBytes);
+          ListIndexEntry *lastEntry=&(CuckooHashIndex[partitionNumber][bucketNumber]);
+          int mytableNum=bytes2ToInt(lastEntry->TableNum);
+        if(mytableNum==0){
+          //fprintf(stderr,"--partitionNumber:%d,bucketNumber:%d,tag0:%d,tag1:%d,fileID:%d\n",partitionNumber,bucketNumber,tag0,tag1,fileID);
+          lastEntry->KeyTag[0]=(byte)tag0;
+          lastEntry->KeyTag[1]=(byte)tag1;
+          lastEntry->TableNum[0]=tableNumBytes[0];
+          lastEntry->TableNum[1]=tableNumBytes[1];
+          //lastEntry->TableNum[2]=tableNumBytes[2];
+        }else{
+          ListIndexEntry *beginNextEntry=lastEntry->nextEntry;		
+          ListIndexEntry *addEntry=new ListIndexEntry;
+          addEntry->KeyTag[0]=(byte)tag0;
+          addEntry->KeyTag[1]=(byte)tag1;
+          addEntry->TableNum[0]=tableNumBytes[0];
+          addEntry->TableNum[1]=tableNumBytes[1];
+          //addEntry->TableNum[2]=tableNumBytes[2];
+          
+          lastEntry->nextEntry=addEntry;
+          addEntry->nextEntry=beginNextEntry;
+          // printf("addEntry bucket:%u,tag0:%u,tag1:%u,fileID:%u\n",bucketNumber,addEntry->KeyTag[0],addEntry->KeyTag[1],bytes3ToInt(addEntry->TableNum));
+        }
+        delete []tableNumBytes;
+    } 
+  hashFile.close();
+}
+
+//record the location of KV pairs in hash index
+void DBImpl::recordHashIndex(void* paraData){
+  struct recordIndexPara *myPara=(struct recordIndexPara*)paraData;
+  HashFunc curHashfunc;
+  ListIndexEntry* curHashIndex=myPara->curHashIndex;
+  //ListIndexEntry* overflowBucket=myPara->overflowBucket;
+  byte* tableNumBytes=new byte[2];
+  intTo2Byte(int(myPara->number),tableNumBytes);
+  Iterator* iter=myPara->memIter;
+  iter->SeekToFirst();
+   for (; iter->Valid(); iter->Next()){
+      Slice key = iter->key();    
+      byte* keyBytes=new byte[4];
+      unsigned int intKey;
+      unsigned int hashKey;
+      if(strlen(key.data())>20){
+            intKey=strtoul(key.ToString().substr(4,config::kKeyLength).c_str(),NULL,10);
+            hashKey=curHashfunc.RSHash((char*)key.ToString().substr(0,config::kKeyLength).c_str(),config::kKeyLength);
+          //printf("myKey.size():%d,myKey.data():%s,intKey:%u\n",strlen(myKey.data()),myKey.ToString().substr(0,keyLength).c_str(),intKey);
+      }else{
+            intKey=strtoul(key.ToString().c_str(),NULL,10);
+            hashKey=curHashfunc.RSHash((char*)key.ToString().c_str(),config::kKeyLength-8);
+            //fprintf(stderr,"myKey.size():%d,myKey.data():%s,intKey:%d\n",(int)strlen(key.data()),key.data(),intKey);
+      }	
+      int keyBucket=intKey%config::bucketNum;
+      intTo4Byte(hashKey,keyBytes);///
+      //	printf( "intKey:%u,hashKey:%u,bucket:%d,%s,keyBytes[2]:%u,keyBytes[3]:%u\n",intKey,hashKey,keyBucket,(char*)myKey.ToString().substr(0,config::kKeyLength).c_str(),(unsigned int )keyBytes[2],(unsigned int )keyBytes[3]);
+
+
+      int findEmptyBucket=0;
+        for(int k=0;k<config::cuckooHashNum;k++){
+          keyBucket=curHashfunc.cuckooHash((char*)key.ToString().substr(0,config::kKeyLength).c_str(),k,config::kKeyLength);
+          int mytableNum=bytes2ToInt(curHashIndex[keyBucket].TableNum);
+          //if(curHashIndex[keyBucket].KeyTag[0]==0 && curHashIndex[keyBucket].KeyTag[1]==0){
+          if(mytableNum==0){
+            findEmptyBucket=1;
+            break;
+          }
+        }
+        if(findEmptyBucket){
+          //fprintf(stderr,"add to cuckoo hash !!\n");
+          curHashIndex[keyBucket].KeyTag[0]=keyBytes[2];
+          curHashIndex[keyBucket].KeyTag[1]=keyBytes[3];     
+          curHashIndex[keyBucket].TableNum[0]=tableNumBytes[0];
+          curHashIndex[keyBucket].TableNum[1]=tableNumBytes[1];
+          //curHashIndex[keyBucket].TableNum[2]=tableNumBytes[2];
+        }
+        else{
+          //keyBucket=curHashfunc.cuckooHash((char*)key.ToString().substr(0,config::kKeyLength).c_str(),config::cuckooHashNum-1,config::kKeyLength);
+          ///add to head
+          ListIndexEntry *lastEntry=&curHashIndex[keyBucket];
+          ListIndexEntry *beginNextEntry=lastEntry->nextEntry;    
+          ListIndexEntry *addEntry=new ListIndexEntry;      
+          addEntry->KeyTag[0]=lastEntry->KeyTag[0];
+          addEntry->KeyTag[1]=lastEntry->KeyTag[1];
+          addEntry->TableNum[0]=lastEntry->TableNum[0];
+          addEntry->TableNum[1]=lastEntry->TableNum[1];
+          //addEntry->TableNum[2]=lastEntry->TableNum[2];
+
+          lastEntry->KeyTag[0]=keyBytes[2];
+          lastEntry->KeyTag[1]=keyBytes[3];
+          lastEntry->TableNum[0]=tableNumBytes[0];
+          lastEntry->TableNum[1]=tableNumBytes[1];
+          //lastEntry->TableNum[2]=tableNumBytes[2];
+          lastEntry->nextEntry=addEntry;
+          addEntry->nextEntry=beginNextEntry;
+          delete []keyBytes;   
+        }
+    delete []tableNumBytes;
+    //delete iter;
+  }
+}
+
+bool DBImpl::containNewTable(int NewTableNum, std::vector<FileMetaData*> *myfiles){
+   for (size_t i = 0; i < myfiles[0].size(); i++) {
+      FileMetaData* f = myfiles[0][i];
+      if(NewTableNum==(int)f->fd.packed_number_and_path_id){
+	    return true;
+      }
+   }
+  return false;
+}
+
+void DBImpl::updateHashTable(void *paraData){
+  struct upIndexPara *updateIndex=(struct upIndexPara*)paraData;
+  std::vector<FileMetaData*> *deleteFiles=updateIndex->deleteFiles;
+  ListIndexEntry* curHashIndex=updateIndex->curHashIndex;
+  for(int i=0;i<config::bucketNum;i++){
+    int curTableNum=bytes2ToInt(curHashIndex[i].TableNum);
+    //while(curTableNum!=0 && containNewTable(curTableNum,deleteFiles)){
+    if(curTableNum!=0 && containNewTable(curTableNum,deleteFiles)){
+      curHashIndex[i].KeyTag[0]=0;
+      curHashIndex[i].KeyTag[1]=0;
+      curHashIndex[i].TableNum[0]=0;
+      curHashIndex[i].TableNum[1]=0;
+      //curHashIndex[i].TableNum[2]=0;
+    }
+    ListIndexEntry* nextIndexEntry=curHashIndex[i].nextEntry;
+    ListIndexEntry* PrevIndexEntry=&curHashIndex[i];
+    while(nextIndexEntry!=NULL){
+      int myTableNum=bytes2ToInt(nextIndexEntry->TableNum);
+      if(containNewTable(myTableNum,deleteFiles)){
+        PrevIndexEntry->nextEntry=nextIndexEntry->nextEntry;
+        delete nextIndexEntry;
+        //nextIndexEntry=NULL;
+        nextIndexEntry=PrevIndexEntry->nextEntry;
+        continue;
+      }
+      PrevIndexEntry=nextIndexEntry;
+      nextIndexEntry=nextIndexEntry->nextEntry;
+    }
+  }
+  //fprintf(stderr,"after in updateHashTable\n");
+}
+
+Status DBImpl::rebuildHashIndex(){
+  Status status;
+  /*for(int k=0;k<config::kNumPartition;k++){
+     versions_->current()->rebuildHashIndexIterators(options,k,HashIndex);
+  }*/
+  recoveryHashTable();
+  fprintf(stderr,"after recoveryHashTable\n");
+  return status;
+}
+
+//////////////////////////////////////////////
+
+
+
+
+
+
+
 
 DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
                const bool seq_per_batch, const bool batch_per_txn)
@@ -232,6 +478,8 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
   // !batch_per_trx_ implies seq_per_batch_ because it is only unset for
   // WriteUnprepared, which should use seq_per_batch_.
   assert(batch_per_txn_ || seq_per_batch_);
+  dbimply_m=this;//////////////////unikv:jk
+
   env_->GetAbsolutePath(dbname, &db_absolute_path_);
 
   // Reserve ten files or so for other uses and give the rest to TableCache.
@@ -253,6 +501,7 @@ DBImpl::DBImpl(const DBOptions& options, const std::string& dbname,
   immutable_db_options_.Dump(immutable_db_options_.info_log.get());
   mutable_db_options_.Dump(immutable_db_options_.info_log.get());
   DumpSupportInfo(immutable_db_options_.info_log.get());
+
 
   // always open the DB with 0 here, which means if preserve_deletes_==true
   // we won't drop any deletion markers until SetPreserveDeletesSequenceNumber()

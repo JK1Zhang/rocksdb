@@ -78,6 +78,7 @@ struct JobContext;
 struct ExternalSstFileInfo;
 struct MemTableInfo;
 
+
 // Class to maintain directories for all database paths other than main one.
 class Directories {
  public:
@@ -126,26 +127,37 @@ class Directories {
 class DBImpl : public DB {
  public:
 
-// uni_index:jk
+////////////////////////////// uni_index:jk
 
-struct recordIndexPara{  
-    uint64_t number;
-    Iterator* memIter;
-    ListIndexEntry* curHashIndex;
+  struct recordIndexPara{  
+      uint64_t number;
+      Iterator* memIter;
+      ListIndexEntry* curHashIndex;
   }; 
 
-int NewestPartition=0;
-//int writeL0Number;
-//int  NoPersistentFile=0;
-static struct ListIndexEntry *CuckooHashIndex[config::kNumPartition];
+  struct upIndexPara{  
+      uint64_t file_number;
+      std::vector<FileMetaData*> *deleteFiles;
+      ListIndexEntry* curHashIndex;
+  }; 
+  struct upIndexPara updateIndex;
 
-void initHashIndex();
-void persistentHashTable();
-void compactHashIndexTable();
-void compactHashIndexPartitionTable(int partition);
-void recoveryHashTable();
-static void* recordHashIndex(void *paraData);
-virtual Status rebuildHashIndex(const ReadOptions&);
+  int NewestPartition=0;
+  //int writeL0Number;
+  //int  NoPersistentFile=0;
+  struct ListIndexEntry *CuckooHashIndex[config::kNumPartition];
+  static DBImpl *dbimply_m;
+
+  static struct ListIndexEntry *getCuckooHashIndex();
+  void initHashIndex();
+  void persistentHashTable();
+  void compactHashIndexTable();
+  void compactHashIndexPartitionTable(int partition);
+  void recoveryHashTable();
+  static void recordHashIndex(void *paraData);
+  static void updateHashTable(void *paraData);
+  static bool containNewTable(int NewTableNum, std::vector<FileMetaData*> *myfiles);
+  virtual Status rebuildHashIndex();
 
 
   DBImpl(const DBOptions& options, const std::string& dbname,

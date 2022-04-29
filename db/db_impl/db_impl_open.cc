@@ -1429,7 +1429,7 @@ Status DBImpl::Open(const DBOptions& db_options, const std::string& dbname,
 
   ////////////////////////////// unikv:jk
   impl->initHashIndex();
-  Status s1=impl->rebuildHashIndex(ReadOptions());
+  Status s1=impl->rebuildHashIndex();
   /////////////////////////////
   
   TEST_SYNC_POINT("DBImpl::Open:Opened");

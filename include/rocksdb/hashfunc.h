@@ -149,9 +149,9 @@ unsigned int APHash( char *str, int length)
 	unsigned int hash = 0xAAAAAAAA;
 	//int len = strlen(str);
 	unsigned int i = 0;
-	for(i = 0; i < length; str++, i++){
+	for(i = 0; i < (unsigned int)length; str++, i++){
 		hash ^= ((i & 1) == 0) ? (  (hash <<  7) ^ (*str) * (hash >> 3)) :    
-		                         (~((hash << 11) + (*str) ^ (hash >> 5)));
+		                         (~(((hash << 11) + (*str)) ^ (hash >> 5)));
 	}
 	return (hash & 0x7FFFFFFF);
 }

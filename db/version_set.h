@@ -49,6 +49,7 @@
 #include "trace_replay/block_cache_tracer.h"
 
 #include "rocksdb/hashfunc.h"
+
 namespace rocksdb {
 
 namespace log {
