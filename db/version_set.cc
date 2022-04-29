@@ -157,6 +157,8 @@ class FilePicker {
             curr_index_in_curr_level_ == curr_file_level_->num_files - 1;
         int cmp_largest = -1;
 
+        
+
         // Do key range filtering of files or/and fractional cascading if:
         // (1) not all the files are in level 0, or
         // (2) there are more than 3 current level files
@@ -165,7 +167,48 @@ class FilePicker {
         // highly tuned to minimize number of tables queried by each query,
         // so it is unlikely that key range filtering is more efficient than
         // querying the files.
-        if (num_levels_ > 1 || curr_file_level_->num_files > 3) {
+        
+        //unikv:jk
+        if(0 == curr_level_){
+          byte* keyBytes=new byte[4];
+          int tableNum=-1,fileNum=-1;
+          for(int k=config::cuckooHashNum-1;k>=0;k--){
+            tableNum=-1,fileNum=-1;
+            HashFunc verhashfunc;
+            int bucketNumber = verhashfunc.cuckooHash((char*)user_key_.ToString().substr(0,config::kKeyLength).c_str(),k,config::kKeyLength);
+            ListIndexEntry *lastEntry=&((DBImpl::CuckooHashIndex[0])[bucketNumber]);
+            while(lastEntry!=NULL){
+                  //printf( "in Link List look key:%u, in level:%d,bucket:%d\n",InKey,level,bucketNumber);
+                  if(lastEntry->KeyTag[0]==keyBytes[2] && lastEntry->KeyTag[1]==keyBytes[3]){	
+                      //tableNum=bytes3ToInt(lastEntry->TableNum);
+                      tableNum=bytes2ToInt(lastEntry->TableNum);
+                      if(tableNum<=0){
+                        lastEntry=lastEntry->nextEntry;
+                        continue;
+                      }
+                  }else{
+                      lastEntry=lastEntry->nextEntry;
+                      continue;
+                  }
+                  for(int k=0;k<curr_file_level_->num_files;k++){
+                      if(tableNum==(int)((&curr_file_level_->files[k])->fd).packed_number_and_path_id){
+                          fileNum=k;            
+                          break;
+                      }
+                  }
+                if(fileNum<0){
+                    //fprintf(stderr, "&&&&&&&&&&key=%d,tableNum:%d\n",atoi(ikey.ToString().c_str()),tableNum);
+                    lastEntry=lastEntry->nextEntry;
+                    continue;
+                  }
+                  f = &curr_file_level_->files[fileNum];  
+            
+              }
+          }
+
+
+        }
+        else if (num_levels_ > 1 || curr_file_level_->num_files > 3) {
           // Check if key is within a file's range. If search left bound and
           // right bound point to the same find, we are sure key falls in
           // range.
@@ -200,6 +243,7 @@ class FilePicker {
               break;
             }
           }
+
         }
 #ifndef NDEBUG
         // Sanity check to make sure that the files are correctly sorted
@@ -1850,6 +1894,9 @@ void Version::Get(const ReadOptions& read_options, const LookupKey& k,
     *status = Status::NotFound(); // Use an empty error message for speed
   }
 }
+
+
+
 
 void Version::MultiGet(const ReadOptions& read_options, MultiGetRange* range,
                        ReadCallback* callback, bool* is_blob) {

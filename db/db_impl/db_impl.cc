@@ -449,6 +449,7 @@ Status DBImpl::CloseHelper() {
   // CancelAllBackgroundWork called with false means we just set the shutdown
   // marker. After this we do a variant of the waiting and unschedule work
   // (to consider: moving all the waiting into CancelAllBackgroundWork(true))
+
   CancelAllBackgroundWork(false);
   int bottom_compactions_unscheduled =
       env_->UnSchedule(this, Env::Priority::BOTTOM);
@@ -488,6 +489,8 @@ Status DBImpl::CloseHelper() {
       delete cfd;
     }
   }
+
+
 
   if (default_cf_handle_ != nullptr || persist_stats_cf_handle_ != nullptr) {
     // we need to delete handle outside of lock because it does its own locking
@@ -560,6 +563,34 @@ Status DBImpl::CloseHelper() {
   // we can guarantee that after versions_.reset(), table cache is empty
   // so the cache can be safely destroyed.
   table_cache_->EraseUnRefEntries();
+
+
+
+  //////////////////////////////// unikv:JK
+  persistentHashTable();
+  for(int i=0;i<=NewestPartition;i++){
+    for(int j=0;j<config::bucketNum;j++){
+        ListIndexEntry* currIndexEntry=CuckooHashIndex[i][j].nextEntry;
+        ListIndexEntry* PrvIndexEntry=&CuckooHashIndex[i][j];
+        while(currIndexEntry!=NULL){
+          PrvIndexEntry->nextEntry=currIndexEntry->nextEntry;
+          delete currIndexEntry;
+          //currIndexEntry=NULL;
+          currIndexEntry=PrvIndexEntry->nextEntry;
+        }
+    }
+    delete [] CuckooHashIndex[i];
+  }
+
+
+  /////////////////////////////////
+
+
+
+
+
+
+
 
   for (auto& txn_entry : recovered_transactions_) {
     delete txn_entry.second;

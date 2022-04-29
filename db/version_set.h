@@ -48,6 +48,7 @@
 #include "table/multiget_context.h"
 #include "trace_replay/block_cache_tracer.h"
 
+#include "rocksdb/hashfunc.h"
 namespace rocksdb {
 
 namespace log {
@@ -602,6 +603,7 @@ using MultiGetRange = MultiGetContext::Range;
 // family at a certain point in time.
 class Version {
  public:
+  HashFunc verhashfunc;
   // Append to *iters a sequence of iterators that will
   // yield the contents of this Version when merged together.
   // REQUIRES: This version has been saved (see VersionSet::SaveTo)
@@ -634,12 +636,24 @@ class Version {
   // for the key if a key was found.
   //
   // REQUIRES: lock is not held
+  /*
   void Get(const ReadOptions&, const LookupKey& key, PinnableSlice* value,
            Status* status, MergeContext* merge_context,
            SequenceNumber* max_covering_tombstone_seq,
            bool* value_found = nullptr, bool* key_exists = nullptr,
            SequenceNumber* seq = nullptr, ReadCallback* callback = nullptr,
            bool* is_blob = nullptr);
+*/
+
+
+  //GetwithCukoo
+  void Get(const ReadOptions&, const LookupKey& key, PinnableSlice* value,
+           Status* status, MergeContext* merge_context,
+           SequenceNumber* max_covering_tombstone_seq,
+           bool* value_found = nullptr, bool* key_exists = nullptr,
+           SequenceNumber* seq = nullptr, ReadCallback* callback = nullptr,
+           bool* is_blob = nullptr);
+
 
   void MultiGet(const ReadOptions&, MultiGetRange* range,
                 ReadCallback* callback = nullptr, bool* is_blob = nullptr);

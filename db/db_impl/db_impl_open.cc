@@ -1426,6 +1426,12 @@ Status DBImpl::Open(const DBOptions& db_options, const std::string& dbname,
       }
     }
   }
+
+  ////////////////////////////// unikv:jk
+  impl->initHashIndex();
+  Status s1=impl->rebuildHashIndex(ReadOptions());
+  /////////////////////////////
+  
   TEST_SYNC_POINT("DBImpl::Open:Opened");
   Status persist_options_status;
   if (s.ok()) {

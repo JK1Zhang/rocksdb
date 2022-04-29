@@ -132,7 +132,7 @@ void DBImpl::recoveryHashTable(){
 }
 
 //record the location of KV pairs in hash index
-void* DBImpl::recordHashIndex(void* paraData ){
+void* DBImpl::recordHashIndex(void* paraData){
   struct recordIndexPara *myPara=(struct recordIndexPara*)paraData;
   HashFunc curHashfunc;
   ListIndexEntry* curHashIndex=myPara->curHashIndex;
@@ -206,7 +206,15 @@ void* DBImpl::recordHashIndex(void* paraData ){
 
 
 
-
+Status DBImpl::rebuildHashIndex(const ReadOptions& options){
+  Status status;
+  /*for(int k=0;k<config::kNumPartition;k++){
+     versions_->current()->rebuildHashIndexIterators(options,k,HashIndex);
+  }*/
+  recoveryHashTable();
+  fprintf(stderr,"after recoveryHashTable\n");
+  return status;
+}
 
 
 

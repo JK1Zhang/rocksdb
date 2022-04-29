@@ -125,6 +125,29 @@ class Directories {
 // divided in several db_impl_*.cc files, besides db_impl.cc.
 class DBImpl : public DB {
  public:
+
+// uni_index:jk
+
+struct recordIndexPara{  
+    uint64_t number;
+    Iterator* memIter;
+    ListIndexEntry* curHashIndex;
+  }; 
+
+int NewestPartition=0;
+//int writeL0Number;
+//int  NoPersistentFile=0;
+static struct ListIndexEntry *CuckooHashIndex[config::kNumPartition];
+
+void initHashIndex();
+void persistentHashTable();
+void compactHashIndexTable();
+void compactHashIndexPartitionTable(int partition);
+void recoveryHashTable();
+static void* recordHashIndex(void *paraData);
+virtual Status rebuildHashIndex(const ReadOptions&);
+
+
   DBImpl(const DBOptions& options, const std::string& dbname,
          const bool seq_per_batch = false, const bool batch_per_txn = true);
   virtual ~DBImpl();
@@ -1081,33 +1104,6 @@ class DBImpl : public DB {
       const std::vector<ColumnFamilyDescriptor>& column_families,
       bool read_only = false, bool error_if_log_file_exist = false,
       bool error_if_data_exists_in_logs = false);
-
-
-
-
-
-
-// uni_index:jk
-
-struct recordIndexPara{  
-    uint64_t number;
-    Iterator* memIter;
-    ListIndexEntry* curHashIndex;
-  }; 
-
-int NewestPartition=0;
-//int writeL0Number;
-//int  NoPersistentFile=0;
-struct ListIndexEntry *CuckooHashIndex[config::kNumPartition];
-
-void initHashIndex();
-void persistentHashTable();
-void compactHashIndexTable();
-void compactHashIndexPartitionTable(int partition);
-void recoveryHashTable();
-static void* recordHashIndex(void *paraData);
-
-
 
 
  private:
